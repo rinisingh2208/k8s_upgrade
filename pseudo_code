@@ -1,0 +1,37 @@
+current_version => fetch via command "kubeadm version"
+version_to_upgrade=> input from user
+
+current_version_without_security_patch_version => current_version.rsplit(".",1)[0]
+
+current_version_without_security_patch_version_in_number=>int(current_version_without_security_patch_version.replace(".",""))
+
+
+while current_version != version_to_upgrade
+
+         list_of_version_available=yum list --showduplicates kubeadm --disableexcludes=kubernetes|xargs -n3| awk -F" " '{print $3}'|grep ^current_version_without_security_patch_version
+
+         if list_of_version_available contains version_to_upgrade
+         then upgrade to that version via commands to upgrade kubeadm cluster ["yum    install -y kubeadm-"+version_to_upgrade+" --disableexcludes=kubernetes ;"kubeadm upgrade apply"+version_to_upgrade ;"yum install -y kubelet-"+version+"-0 kubectl-"+version+"-0 --disableexcludes=kubernetes"]
+	   and fetch current_version of kubeadm, kubectl , kubelet
+	   and format it in same format of version_to_upgrade 
+		
+	else 
+                    
+version_updated=list_of_version_available[-1]
+Upgrade kubeadm,kubectl to version_updated;
+Fetch current version without security patch version and format it to number;	      current_version_without_security_patch_version_in_number=current_version_without_security_patch_version_in_number+1
+		  current_version_without_security_patch_version=str(current_version_without_security_patch_version_in_number)
+		  l = [1]
+		  for i in l:
+			   current_version_without_security_patch_version = current_version_without_security_patch_version[:i] + "." + current_version_without_security_patch_version[i:]
+		  current_version=current_version_without_security_patch_version+"0"
+
+
+ Note:
+Script will run on a master node and will fetch IP for masters and workers via below command.
+
+ fetch master node ip: 
+ kubectl get nodes --selector='node-role.kubernetes.io/master' -o   jsonpath='{.items[*].status.addresses[?(@.type=="InternalIP")].address}'
+
+fetch worker node ip:
+kubectl get nodes --selector='!node-role.kubernetes.io/master' -o jsonpath='{.items[*].status.addresses[?(@.type=="InternalIP")].address}'
