@@ -1,0 +1,1 @@
+sudo python3 k8s_upgrade.py -v %s" % (args.version)
