@@ -13,29 +13,7 @@ warnings.filterwarnings("ignore")
 sys.path.append('/')
 
 
-def update_and_upgrade_docker_on_other_nodes( ip, ssh, password):
 
-    cmd = "sudo -S yum update && sudo -S yum upgrade -y"
-
-    logging.info("run command : {0}".format(str(cmd)))
-    stdin, stdout, stderr = ssh.exec_command(cmd)
-    stdin.write(password + "\n")
-    stdin.flush()
-    print(stdout.read().decode())
-    logging.debug(stdout.read().decode())
-    logging.error(stderr.read().decode())
-
-def cleanup_vm(ssh, password):
-
-    cmd = "sudo -S yum update -y ; sudo -S package-cleanup --oldkernels --count=1 -y ; sudo -S yum autoremove -y"
-
-    logging.info("run command : {0}".format(str(cmd)))
-    stdin, stdout, stderr = ssh.exec_command(cmd)
-    stdin.write(password + "\n")
-    stdin.flush()
-    print(stdout.read().decode())
-    logging.debug(stdout.read().decode())
-    logging.error(stderr.read().decode())
 
 def run_command_with_password(command, ssh, password):
     logging.debug("\nCommand = " + str(command))
@@ -315,16 +293,7 @@ def remove_older_kubeadm_backups(ssh, password):
             if error:
                 return error
 
-def adding_gc_for_cleanup(ssh, password):
-    print("entered gc cleanup module to add gc to the args file")
-    kubeenv_cmd = "echo  '" + 'KUBELET_KUBEADM_ARGS=" --image-gc-high-threshold=80 --image-gc-low-threshold=70 --eviction-hard=imagefs.available<250Mi --eviction-hard=memory.available<250Mi --container-runtime=remote --container-runtime-endpoint=unix:///run/containerd/containerd.sock"' + "'" + " | tee /tmp/kubeadm-flags.env"
-    run_command_with_password(kubeenv_cmd, ssh, password)
-    run_command_with_password("sudo -S mv /tmp/kubeadm-flags.env /var/lib/kubelet/kubeadm-flags.env", ssh, password)
-    run_command_with_password("sudo -S yq write -i /var/lib/kubelet/config.yaml cgroupDriver systemd", ssh, password)
-    run_command_with_password("sudo -S systemctl restart kubelet", ssh, password)
-    run_command_with_password("sh scripts/patch-security-fixes.sh", ssh, password)
 
-if __name__ == "__main__":
     logging.basicConfig(filename='/tmp/update_kubernetes.log', level=logging.INFO,
                         format='%(asctime)s -  %(levelname)s - %(message)s')
     parser = argparse.ArgumentParser()
@@ -346,20 +315,16 @@ if __name__ == "__main__":
     for worker_ip in worker_ips:
         ssh.connect(worker_ip, username=sshuser, password=sshpassword)
         logging.info("adding changes for gc in kubelet argument file")
-        adding_gc_for_cleanup(ssh, sshpassword)
+      
     for master_ip in master_ips:
         ssh.connect(master_ip, username=sshuser, password=sshpassword)
         logging.info("Cleaning vm for upgrading k8s on master %s" % (master_ip))
-        cleanup_vm(ssh, sshpassword)
-        remove_older_kubeadm_backups(ssh, sshpassword)
         logging.info("Upgrading k8s for master %s" % (master_ip) +" : ")
         logging.info("Upgrading k8s for master %s" % (master_ip) +" : ")
         node_type = "master"
-        adding_gc_for_cleanup(ssh, sshpassword)
         current_versions_list = get_current_versions_list(ssh, sshpassword)
         main_function(current_versions_list, new_version, node_type, ssh, sshpassword)
         logging.info("Upgrading docker along with some other dependencies for master %s" % (master_ip) + " ###")
-        update_and_upgrade_docker_on_other_nodes(master_ip, ssh, sshpassword)
         run_command_with_password("sudo -S systemctl restart kubelet", ssh, sshpassword)
 
         logging.info("Finished upgrading Kubernetes in master %s" % (master_ip))
@@ -370,14 +335,11 @@ if __name__ == "__main__":
         ssh.connect(worker_ip, username=sshuser, password=sshpassword)
         logging.info("Cleaning vm for upgrading k8s on worker %s" % (worker_ip))
         cleanup_vm(ssh, sshpassword)
-        remove_older_kubeadm_backups(ssh, sshpassword)
         logging.info("Upgrading k8s for worker %s" % (worker_ip) +" : ")
         logging.info("Upgrading k8s for worker %s" % (worker_ip) +" : ")
         node_type = "worker"
         current_versions_list = get_current_versions_list(ssh, sshpassword)
         main_function(current_versions_list, new_version, node_type, ssh, sshpassword)
-        logging.info("Upgrading docker along with some other dependencies for worker %s" % (worker_ip) + " ###")
-        update_and_upgrade_docker_on_other_nodes(worker_ip, ssh, sshpassword)
         run_command_with_password("sudo -S systemctl restart kubelet", ssh, sshpassword)
 
         logging.info("Finished upgrading Kubernetes in worker %s" % (worker_ip))
