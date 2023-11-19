@@ -2,7 +2,7 @@ import subprocess
 import logging
 import argparse
 import paramiko
-from scripts.vault import vault as vault
+
 import time
 import sys
 import warnings
@@ -331,8 +331,8 @@ if __name__ == "__main__":
     parser.add_argument('-v', '--version', dest='version', default=None,
                         help="Version to which kubeadm need to be updgrade")
 
-    sshuser = vault.yFetch("node", "username", "")
-    sshpassword = vault.yFetch("node", "password", "")
+    sshuser = "username"
+    sshpassword = "password"
 
     args = parser.parse_args()
     new_version = args.version
